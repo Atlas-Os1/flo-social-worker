@@ -1,0 +1,33 @@
+name = "flo-social-worker"
+main = "src/index.ts"
+compatibility_date = "2024-12-09"
+compatibility_flags = ["nodejs_compat"]
+
+# R2 bucket for blog content (if we want to read from blog directly)
+[[r2_buckets]]
+binding = "BLOG"
+bucket_name = "minte-blog-prod"
+
+# KV for state/cache
+[[kv_namespaces]]
+binding = "STATE"
+id = "68d4588ced3c497f847a8c178df298bb"
+
+# Workers AI binding (for content generation if needed)
+[ai]
+binding = "AI"
+
+# Environment variables
+[vars]
+BLOG_URL = "https://blog.minte.dev"
+GITHUB_REPOS = "kiamichi-Biz-Connect,TCL-AI,SrvcFlo"
+MEMORY_PATH = "/home/flo/clawd/memory"
+
+# Secrets (set via wrangler secret put):
+# - FLO_FB_PAGE_ID: Facebook Page ID (get after page creation)
+# - FLO_FB_PAGE_ACCESS_TOKEN: Long-lived Page Access Token from Graph API Explorer
+# - FLO_FB_APP_ID: Meta App ID (879824491249046)
+# - FLO_FB_APP_SECRET: Meta App Secret
+
+[observability]
+enabled = true

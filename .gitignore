@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Wrangler
+.wrangler/
+.dev.vars
+wrangler.toml.bak
+
+# Build outputs
+dist/
+*.js
+*.d.ts
+!test/*.js
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets (never commit!)
+.env
+.env.*
+secrets/
+*.pem
+*.key
+
+# Test artifacts
+coverage/
+.nyc_output/
