@@ -1,0 +1,27 @@
+name: Daily Facebook Post
+
+on:
+  schedule:
+    # Run daily at 10 AM CST (4 PM UTC)
+    - cron: '0 16 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  post-to-facebook:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Daily Update
+        run: |
+          curl -X POST https://flo-social-worker.srvcflo.workers.dev/daily-update \
+            -H "Content-Type: application/json" \
+            -f  # Fail if non-200 response
+        
+      - name: Report Success
+        if: success()
+        run: echo "✅ Daily post successful!"
+        
+      - name: Report Failure
+        if: failure()
+        run: |
+          echo "❌ Daily post failed - check worker logs"
+          exit 1
