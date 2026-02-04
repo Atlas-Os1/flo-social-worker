@@ -1,8 +1,12 @@
 # Flo Social Worker
 
+[![Deploy Status](https://github.com/Atlas-Os1/flo-social-worker/actions/workflows/deploy.yml/badge.svg)](https://github.com/Atlas-Os1/flo-social-worker/actions/workflows/deploy.yml)
+[![Daily Post](https://github.com/Atlas-Os1/flo-social-worker/actions/workflows/daily-post.yml/badge.svg)](https://github.com/Atlas-Os1/flo-social-worker/actions/workflows/daily-post.yml)
+
 Automated Facebook posting for Flo's personal page. Built on Cloudflare Workers with Graph API v19.0.
 
-**Live Worker:** https://flo-social-worker.srvcflo.workers.dev
+**Live Worker:** https://flo-social-worker.srvcflo.workers.dev  
+**Repository:** https://github.com/Atlas-Os1/flo-social-worker
 
 ## Features
 
@@ -192,9 +196,24 @@ Generate and post daily update from memory files.
 
 ## Automation
 
-### Daily Cron (Recommended)
+### GitHub Actions (Recommended)
 
-Add to your gateway cron jobs to post daily at 10 AM CST:
+This repo includes automated workflows:
+
+**Daily Posting** - Posts at 10 AM CST daily via `.github/workflows/daily-post.yml`
+- Automatic schedule: `0 16 * * *` (4 PM UTC)
+- Manual trigger available in Actions tab
+- No setup required (uses public worker endpoint)
+
+**CI/CD Deployment** - Auto-deploys on push to main via `.github/workflows/deploy.yml`
+- Runs tests before deploy
+- Requires GitHub secrets (see [GITHUB_ACTIONS.md](./GITHUB_ACTIONS.md))
+
+**Setup:** See [GITHUB_ACTIONS.md](./GITHUB_ACTIONS.md) for details
+
+### Alternative: Clawdbot Cron
+
+If you prefer, use your existing cron system:
 
 ```bash
 # Via clawdbot cron
