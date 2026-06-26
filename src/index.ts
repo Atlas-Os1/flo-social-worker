@@ -8,7 +8,7 @@
  * - GET /verify-token - Verify Facebook credentials
  */
 
-import { postToPage, verifyPageToken, getPostEngagement } from './facebook';
+import { postToPage, verifyPageToken, getPageContentPerformance } from './facebook';
 import {
   parseMemoryFile,
   generatePost,
@@ -72,7 +72,8 @@ export default {
             'POST /post-facebook',
             'POST /daily-update',
             'GET /status',
-            'GET /verify-token'
+            'GET /verify-token',
+            'GET /content-performance'
           ]
         }, null, 2), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -108,6 +109,62 @@ export default {
         }, null, 2), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
+      }
+
+      // Content performance analytics
+      if (path === '/content-performance') {
+        if (request.method !== 'GET') {
+          return new Response('Method Not Allowed', { status: 405 });
+        }
+
+        const pageId = env.FLO_FB_PAGE_ID;
+        const token = env.FLO_FB_PAGE_ACCESS_TOKEN;
+
+        if (!pageId || !token) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Facebook credentials not configured. Set FLO_FB_PAGE_ID and FLO_FB_PAGE_ACCESS_TOKEN secrets.'
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const limit = Number(url.searchParams.get('limit') || '10');
+        const sinceDays = Number(url.searchParams.get('since_days') || '30');
+
+        try {
+          const report = await getPageContentPerformance(pageId, token, { limit, sinceDays });
+          const averageEngagementPerPost = report.analyzed_posts > 0
+            ? Number((report.summary.total_engagement / report.analyzed_posts).toFixed(2))
+            : 0;
+
+          return new Response(JSON.stringify({
+            success: true,
+            generated_at: new Date().toISOString(),
+            page_id: report.page_id,
+            limit: report.limit,
+            since_days: report.since_days,
+            analyzed_posts: report.analyzed_posts,
+            summary: {
+              ...report.summary,
+              average_engagement_per_post: averageEngagementPerPost
+            },
+            top_posts: report.top_posts,
+            posts: report.posts
+          }, null, 2), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        } catch (err: any) {
+          console.error('[PERFORMANCE] Error:', err);
+          return new Response(JSON.stringify({
+            success: false,
+            error: err.message || 'Failed to fetch content performance'
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
       }
 
       // Manual post to Facebook
@@ -334,7 +391,8 @@ export default {
           'POST /post-facebook',
           'POST /daily-update',
           'GET /status',
-          'GET /verify-token'
+          'GET /verify-token',
+          'GET /content-performance'
         ]
       }), {
         status: 404,

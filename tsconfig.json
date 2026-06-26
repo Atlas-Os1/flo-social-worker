@@ -4,6 +4,7 @@
     "lib": ["ES2021"],
     "module": "ES2022",
     "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
     "types": ["@cloudflare/workers-types"],
     "resolveJsonModule": true,
     "allowJs": true,

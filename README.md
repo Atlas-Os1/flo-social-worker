@@ -160,6 +160,32 @@ Verify Facebook credentials are valid.
 }
 ```
 
+### `GET /content-performance`
+Read-only analytics summary for recent page posts. Useful for studying what content performs best without exposing tokens.
+
+**Query params:**
+- `limit` — number of posts to analyze (default `10`, max `25`)
+- `since_days` — lookback window in days (default `30`)
+
+**Response:**
+```json
+{
+  "success": true,
+  "generated_at": "2026-06-26T02:10:00.000Z",
+  "page_id": "123456789",
+  "analyzed_posts": 10,
+  "summary": {
+    "total_reactions": 120,
+    "total_comments": 14,
+    "total_shares": 9,
+    "total_engagement": 143,
+    "average_engagement_per_post": 14.3
+  },
+  "top_posts": [...],
+  "posts": [...]
+}
+```
+
 ### `POST /post-facebook`
 Post to Facebook manually.
 

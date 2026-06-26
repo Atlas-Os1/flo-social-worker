@@ -94,6 +94,7 @@ curl https://flo-social-worker.srvcflo.workers.dev/verify-token
 | GET | `/verify-token` | Validate Facebook token |
 | POST | `/post-facebook` | Manual post with message/link |
 | POST | `/daily-update` | Generate post from memory files |
+| GET | `/content-performance` | Read-only analytics for recent posts/reels |
 | GET | `/recent-posts` | List recent posts from KV |
 
 ## Environment
