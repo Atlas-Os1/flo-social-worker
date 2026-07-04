@@ -7,19 +7,32 @@ on:
   workflow_dispatch: # Allow manual trigger
 
 jobs:
+  preview-daily-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Preview generated update without posting
+        run: |
+          curl -X GET "https://flo-social-worker.srvcflo.workers.dev/preview-daily-update" \
+            -H "Accept: application/json" \
+            -f
+
   post-to-facebook:
+    needs: preview-daily-update
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Daily Update
+        env:
+          FLO_SOCIAL_WORKER_TOKEN: ${{ secrets.FLO_SOCIAL_WORKER_TOKEN }}
         run: |
           curl -X POST https://flo-social-worker.srvcflo.workers.dev/daily-update \
             -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${FLO_SOCIAL_WORKER_TOKEN}" \
             -f  # Fail if non-200 response
-        
+
       - name: Report Success
         if: success()
         run: echo "✅ Daily post successful!"
-        
+
       - name: Report Failure
         if: failure()
         run: |

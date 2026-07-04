@@ -103,7 +103,25 @@ echo "879824491249046" | wrangler secret put FLO_FB_APP_ID
 
 ---
 
-### 4. FLO_FB_APP_SECRET
+### 4. FLO_SOCIAL_WORKER_TOKEN
+
+**What**: Shared bearer token for authenticated scheduled posting requests. `GET /preview-daily-update` and `POST /daily-update?dryRun=1` do not post and do not require this token; real `POST /daily-update` requests require it.
+
+**Set in Cloudflare Worker**:
+```bash
+echo "YOUR_RANDOM_POSTING_TOKEN" | wrangler secret put FLO_SOCIAL_WORKER_TOKEN
+```
+
+**Set in GitHub Actions**:
+```bash
+gh secret set FLO_SOCIAL_WORKER_TOKEN -R Atlas-Os1/flo-social-worker
+```
+
+Use the same random value in both places. Do not commit or print the value.
+
+---
+
+### 5. FLO_FB_APP_SECRET
 
 **What**: Meta App Secret for token management
 
@@ -137,6 +155,7 @@ FLO_FB_PAGE_ID
 FLO_FB_PAGE_ACCESS_TOKEN
 FLO_FB_APP_ID
 FLO_FB_APP_SECRET
+FLO_SOCIAL_WORKER_TOKEN
 ```
 
 ### 2. Token is valid
