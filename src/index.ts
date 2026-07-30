@@ -23,6 +23,7 @@ export interface Env {
   FLO_FB_PAGE_ACCESS_TOKEN?: string;
   FLO_FB_APP_ID?: string;
   FLO_FB_APP_SECRET?: string;
+  FLO_SOCIAL_WORKER_TOKEN?: string;
 
   // Bindings
   BLOG?: R2Bucket;
@@ -33,6 +34,55 @@ export interface Env {
   BLOG_URL?: string;
   GITHUB_REPOS?: string;
   MEMORY_PATH?: string;
+}
+
+function jsonResponse(data: unknown, status: number, corsHeaders: Record<string, string>): Response {
+  return new Response(JSON.stringify(data, null, 2), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
+}
+
+function isAuthorized(request: Request, env: Env): boolean {
+  if (!env.FLO_SOCIAL_WORKER_TOKEN) {
+    return false;
+  }
+
+  const header = request.headers.get('Authorization') || '';
+  const token = header.replace(/^Bearer\s+/i, '').trim();
+  return token === env.FLO_SOCIAL_WORKER_TOKEN;
+}
+
+function buildDailyUpdate(env: Env): {
+  content: GeneratedContent;
+  formattedMessage: string;
+  validation: ReturnType<typeof validatePost>;
+} {
+  // For now, use placeholder highlights.
+  // In production, this would read from memory files via R2 or an external source.
+  const highlights = [
+    {
+      text: 'Built automated Facebook posting system with Graph API',
+      source: 'memory' as const
+    },
+    {
+      text: 'Integrated content generation from daily memory files',
+      source: 'memory' as const
+    },
+    {
+      text: 'Set up Worker on Cloudflare edge for reliable posting',
+      source: 'memory' as const
+    }
+  ];
+
+  const content = generatePost(highlights, {
+    includeLink: true,
+    blogUrl: env.BLOG_URL || 'https://blog.minte.dev'
+  });
+  const validation = validatePost(content);
+  const formattedMessage = formatForFacebook(content.message);
+
+  return { content, formattedMessage, validation };
 }
 
 export default {
@@ -71,6 +121,8 @@ export default {
           endpoints: [
             'POST /post-facebook',
             'POST /daily-update',
+            'POST /daily-update?dryRun=1',
+            'GET /preview-daily-update',
             'GET /status',
             'GET /verify-token',
             'GET /content-performance'
@@ -259,73 +311,81 @@ export default {
         }
       }
 
-      // Generate and post daily update
+      // Preview generated daily update without posting to Facebook.
+      if (path === '/preview-daily-update') {
+        if (request.method !== 'GET') {
+          return new Response('Method Not Allowed', { status: 405 });
+        }
+
+        const { content, formattedMessage, validation } = buildDailyUpdate(env);
+        return jsonResponse({
+          success: validation.valid,
+          dry_run: true,
+          would_post: false,
+          generated_content: content,
+          formatted_message: formattedMessage,
+          highlights_used: content.highlights.length,
+          validation_errors: validation.errors,
+          validation_warnings: validation.warnings
+        }, validation.valid ? 200 : 400, corsHeaders);
+      }
+
+      // Generate and post daily update. Use ?dryRun=1 to diagnose without posting.
       if (path === '/daily-update') {
         if (request.method !== 'POST') {
           return new Response('Method Not Allowed', { status: 405 });
         }
 
         try {
-          console.log('[DAILY] Generating daily update...');
+          const dryRun = ['1', 'true', 'yes'].includes((url.searchParams.get('dryRun') || '').toLowerCase());
+          console.log(`[DAILY] Generating daily update${dryRun ? ' (dry run)' : ''}...`);
 
-          // For now, use placeholder highlights
-          // In production, this would read from memory files via R2 or external source
-          const highlights = [
-            {
-              text: 'Built automated Facebook posting system with Graph API',
-              source: 'memory' as const
-            },
-            {
-              text: 'Integrated content generation from daily memory files',
-              source: 'memory' as const
-            },
-            {
-              text: 'Set up Worker on Cloudflare edge for reliable posting',
-              source: 'memory' as const
-            }
-          ];
-
-          // Generate post content
-          const content = generatePost(highlights, {
-            includeLink: true,
-            blogUrl: env.BLOG_URL || 'https://blog.minte.dev'
-          });
-
-          // Validate content
-          const validation = validatePost(content);
+          const { content, formattedMessage, validation } = buildDailyUpdate(env);
           if (!validation.valid) {
-            return new Response(JSON.stringify({
+            return jsonResponse({
               success: false,
+              dry_run: dryRun,
+              would_post: false,
               error: 'Generated content failed validation',
               errors: validation.errors,
-              warnings: validation.warnings
-            }), {
-              status: 400,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            });
+              warnings: validation.warnings,
+              generated_content: content
+            }, 400, corsHeaders);
           }
 
-          // Log warnings
           if (validation.warnings.length > 0) {
             console.warn('[DAILY] Warnings:', validation.warnings);
           }
 
-          // Format for Facebook
-          const formattedMessage = formatForFacebook(content.message);
+          if (dryRun) {
+            return jsonResponse({
+              success: true,
+              dry_run: true,
+              would_post: true,
+              generated_content: content,
+              formatted_message: formattedMessage,
+              highlights_used: content.highlights.length,
+              validation_warnings: validation.warnings
+            }, 200, corsHeaders);
+          }
+
+          if (!isAuthorized(request, env)) {
+            return jsonResponse({
+              success: false,
+              error: 'Unauthorized daily update request'
+            }, 401, corsHeaders);
+          }
 
           // Post to Facebook
           const pageId = env.FLO_FB_PAGE_ID;
           const token = env.FLO_FB_PAGE_ACCESS_TOKEN;
 
           if (!pageId || !token) {
-            return new Response(JSON.stringify({
+            return jsonResponse({
               success: false,
               error: 'Facebook credentials not configured',
-              generated_content: content // Return content for preview
-            }), {
-              status: 500,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            });
+              generated_content: content
+            }, 500, corsHeaders);
           }
 
           const result = await postToPage(pageId, token, {
@@ -334,14 +394,11 @@ export default {
           });
 
           if (!result.success) {
-            return new Response(JSON.stringify({
+            return jsonResponse({
               success: false,
               error: result.error,
               generated_content: content
-            }), {
-              status: 500,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            });
+            }, 500, corsHeaders);
           }
 
           // Store in KV
@@ -362,25 +419,20 @@ export default {
             );
           }
 
-          return new Response(JSON.stringify({
+          return jsonResponse({
             success: true,
             post_id: result.post_id,
             facebook_url: result.facebook_url,
             highlights_used: content.highlights.length,
             validation_warnings: validation.warnings
-          }, null, 2), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
+          }, 200, corsHeaders);
 
         } catch (err: any) {
           console.error('[DAILY] Error:', err);
-          return new Response(JSON.stringify({
+          return jsonResponse({
             success: false,
             error: err.message || 'Internal error'
-          }), {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
+          }, 500, corsHeaders);
         }
       }
 
@@ -390,6 +442,8 @@ export default {
         available_endpoints: [
           'POST /post-facebook',
           'POST /daily-update',
+          'POST /daily-update?dryRun=1',
+          'GET /preview-daily-update',
           'GET /status',
           'GET /verify-token',
           'GET /content-performance'

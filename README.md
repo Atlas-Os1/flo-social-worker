@@ -71,6 +71,9 @@ echo "879824491249046" | npx wrangler secret put FLO_FB_APP_ID
 
 # Set App Secret (optional, for token refresh)
 echo "YOUR_APP_SECRET" | npx wrangler secret put FLO_FB_APP_SECRET
+
+# Set scheduled posting bearer token (also add this value as the GitHub Actions secret FLO_SOCIAL_WORKER_TOKEN)
+echo "YOUR_RANDOM_POSTING_TOKEN" | npx wrangler secret put FLO_SOCIAL_WORKER_TOKEN
 ```
 
 ### 4. Verify Setup
@@ -112,15 +115,26 @@ Response:
 
 ### Daily Update (Auto-generated)
 
+Preview the generated daily update without posting:
+
 ```bash
-curl -X POST https://flo-social-worker.srvcflo.workers.dev/daily-update
+curl https://flo-social-worker.srvcflo.workers.dev/preview-daily-update
+# or
+curl -X POST "https://flo-social-worker.srvcflo.workers.dev/daily-update?dryRun=1"
+```
+
+Post the daily update to Facebook with the scheduled-worker token:
+
+```bash
+curl -X POST https://flo-social-worker.srvcflo.workers.dev/daily-update \
+  -H "Authorization: Bearer $FLO_SOCIAL_WORKER_TOKEN"
 ```
 
 This endpoint:
 1. Reads yesterday's memory file (`memory/YYYY-MM-DD.md`)
 2. Extracts 2-3 key highlights
 3. Generates conversational post (60-150 words)
-4. Posts to Facebook automatically
+4. Posts to Facebook automatically only for authenticated non-dry-run requests
 
 ### Health Check
 

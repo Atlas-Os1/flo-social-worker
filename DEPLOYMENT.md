@@ -38,13 +38,16 @@ echo "879824491249046" | wrangler secret put FLO_FB_APP_ID
 
 # Set App Secret (from Meta App dashboard)
 echo "YOUR_APP_SECRET" | wrangler secret put FLO_FB_APP_SECRET
+
+# Set scheduled posting bearer token and mirror it to GitHub Actions as FLO_SOCIAL_WORKER_TOKEN
+echo "YOUR_RANDOM_POSTING_TOKEN" | wrangler secret put FLO_SOCIAL_WORKER_TOKEN
 ```
 
 ## Deploy Steps
 
 ### 1. Install Dependencies
 ```bash
-npm install
+npm ci
 ```
 
 ### 2. Run Tests
